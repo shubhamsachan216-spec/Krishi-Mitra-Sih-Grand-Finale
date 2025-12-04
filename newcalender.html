@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Smart Crop Calendar — Weather, Pest & Soil (Auto Location)</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+<style>
+:root{
+  --bg1: linear-gradient(180deg,#163a14,#0b2a09);
+  --card: rgba(255,255,255,0.08);
+  --muted: rgba(255,255,255,0.75);
+  --accent: #ffd54a;
+  --good: rgba(34,197,94,0.15);
+  --warn: rgba(245,158,11,0.12);
+  --bad: rgba(239,68,68,0.12);
+}
+*{box-sizing:border-box;font-family: 'Segoe UI', Roboto, Arial, sans-serif}
+body{
+  margin:0;padding:20px;background: url("https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1400&auto=format&fit=crop") center/cover fixed, var(--bg1);
+  color:#fff;-webkit-font-smoothing:antialiased;
+}
+.container{max-width:980px;margin:20px auto;padding:18px}
+
+/* Header */
+.header-container {
+    width: 100%; padding: 25px; background: linear-gradient(to right, rgba(0,0,0,0.35), rgba(0,0,0,0.15));
+    border-radius: 18px; margin-bottom: 20px; backdrop-filter: blur(8px); box-shadow: 0 10px 35px rgba(0, 0, 0, 0.35);
+}
+.header-left { display:flex; align-items:center; gap:18px; }
+.header-icon { width:65px; height:65px; filter: drop-shadow(0 5px 10px rgba(0,0,0,0.4)); }
+.header-container h1 { font-size:2rem; margin:0; color:#fff; letter-spacing:0.5px; font-weight:700; }
+.subtitle { margin:3px 0 0; font-size:1rem; color:#d6e8d6; opacity:0.9; }
+
+/* Intro Box */
+.intro-box { margin-top:15px; padding:20px; background: rgba(255,255,255,0.15); border-radius:14px; backdrop-filter: blur(7px); border:1px solid rgba(255,255,255,0.12); box-shadow:0 8px 25px rgba(0,0,0,0.25); }
+.intro-box p { margin:0; font-size:1.05rem; line-height:1.5rem; color:#f5f5f5; }
+
+/* Main UI */
+.box{background:var(--card);backdrop-filter:blur(8px);padding:16px;border-radius:12px;margin-top:16px;box-shadow:0 8px 30px rgba(0,0,0,0.4)}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.col{flex:1;min-width:220px}
+label{display:block;font-weight:600;margin-bottom:6px;color:var(--muted)}
+input[type="date"], select, input[type="text"], input[type="number"]{
+  width:100%;padding:10px;border-radius:8px;border:none;outline:none;font-size:0.95rem;background:rgba(255,255,255,0.92);color:#111;
+}
+.small{font-size:0.9rem;color:rgba(255,255,255,0.85)}
+.btn{display:inline-block;padding:10px 14px;border-radius:10px;background:#2e7d32;border:none;color:#fff;font-weight:700;cursor:pointer}
+.btn.secondary{background:#1565c0}
+.output{margin-top:14px}
+.result{padding:14px;border-radius:10px;background:linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.22));box-shadow:0 8px 24px rgba(0,0,0,0.45)}
+.timeline{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.tag{padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.06);font-weight:600}
+.tag.good{background:var(--good);color:#09320b}
+.tag.warn{background:var(--warn);color:#663d00}
+.tag.bad{background:var(--bad);color:#2b0303}
+.weatherBox{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.footerNote{font-size:0.8rem;color:rgba(255,255,255,0.7);margin-top:10px}
+.flexBottom{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+/* small status text */
+.status {
+  margin-top:8px;
+  font-size:0.95rem;
+  color:#e6f4ea;
+  background: rgba(0,0,0,0.18);
+  padding:8px 10px;
+  border-radius:8px;
+  display:inline-block;
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+   <!-- Header (ICON REMOVED) -->
+<div class="header-container">
+  <div class="header-left" style="gap:10px">
+      <div>
+        <h1>🌾 Smart Crop Calendar</h1>
+        <p class="subtitle">Weather • Soil • Pest Prediction — Auto Location Enabled</p>
+      </div>
+  </div>
+</div>
+
+
+
+  <!-- Intro -->
+  <div class="intro-box">
+    <p>🌟 <b>Quick Start:</b> Choose crop, sowing date & soil type. The page will ask permission to use your current location and then automatically fetch weather for your area. If you deny, you can type the city manually.</p>
+    <div id="locStatus" class="status" style="display:none">Requesting location…</div>
+  </div>
+
+  <!-- Inputs -->
+  <div class="box">
+    <div class="row">
+      <div class="col">
+        <label for="crop">Select Crop</label>
+        <select id="crop"></select>
+      </div>
+
+      <div class="col">
+        <label for="sowDate">Sowing Date</label>
+        <input type="date" id="sowDate">
+      </div>
+
+      <div class="col">
+        <label for="soilType">Soil Type</label>
+        <select id="soilType">
+          <option value="loam">Loam (balanced)</option>
+          <option value="sandy">Sandy (drains fast)</option>
+          <option value="clay">Clay (holds water)</option>
+        </select>
+      </div>
+    </div>
+
+    <hr style="margin:12px 0;opacity:0.12"/>
+
+    <!-- Weather controls -->
+    <div class="row">
+      <div class="col">
+        <label for="owApi">OpenWeather API Key (already added)</label>
+        <!-- YOUR API KEY INSERTED HERE -->
+        <input type="text" id="owApi" value="3081b138babb030c92442a664ca92ba4" />
+      </div>
+
+      <div class="col">
+        <label for="owCity">City (auto-filled when you allow location)</label>
+        <input type="text" id="owCity" placeholder="e.g. Lucknow, IN">
+      </div>
+
+      <div style="min-width:160px;display:flex;align-items:end;gap:8px">
+        <button class="btn" onclick="fetchWeather()">Fetch Weather</button>
+        <button class="btn secondary" onclick="useManualWeather()">Use Manual Weather</button>
+      </div>
+    </div>
+
+    <!-- manual weather fields (visible so user can override) -->
+    <div class="row" style="margin-top:12px">
+      <div class="col">
+        <label>Manual Weather (if needed)</label>
+        <div style="display:flex;gap:8px">
+          <input type="number" id="manualTemp" placeholder="Temp °C">
+          <input type="number" id="manualHum" placeholder="Humidity %">
+          <select id="manualRain">
+            <option value="no">No rain expected</option>
+            <option value="light">Light rain</option>
+            <option value="heavy">Heavy rain</option>
+          </select>
+        </div>
+      </div>
+      <div class="col" style="min-width:200px">
+        <label>Weather Notes</label>
+        <input type="text" id="weatherNotes" placeholder="Forecast notes / confidence">
+      </div>
+    </div>
+
+    <div class="flexBottom" style="margin-top:12px">
+      <button class="btn" onclick="generateCalendar()">Generate Calendar</button>
+      <div class="footerNote">Tip: Allow location for automatic weather. If API fails, try running page via a local server (e.g. `python -m http.server`).</div>
+    </div>
+  </div>
+
+  <!-- Output -->
+  <div id="output" class="output"></div>
+</div>
+
+<script>
+/* ============================
+   Helper and data
+   ============================ */
+function loadCrops(){
+  const crops = [
+    { id:"wheat", name:"Wheat", duration:140, fert1:20, fert2:50, irrigation:15, pestWindow:70, pestSensitivity:"medium", fertilizerDosageKgPerAcre:{urea:40,dap:30} },
+    { id:"rice", name:"Rice", duration:120, fert1:25, fert2:45, irrigation:10, pestWindow:60, pestSensitivity:"high", fertilizerDosageKgPerAcre:{urea:60,dap:40} },
+    { id:"maize", name:"Maize", duration:110, fert1:18, fert2:40, irrigation:12, pestWindow:55, pestSensitivity:"medium", fertilizerDosageKgPerAcre:{urea:45,dap:35} },
+    { id:"sugarcane", name:"Sugarcane", duration:330, fert1:30, fert2:90, irrigation:20, pestWindow:120, pestSensitivity:"low", fertilizerDosageKgPerAcre:{urea:80,dap:50} },
+    { id:"millet", name:"Millet", duration:95, fert1:15, fert2:35, irrigation:10, pestWindow:50, pestSensitivity:"low", fertilizerDosageKgPerAcre:{urea:30,dap:20} }
+  ];
+  const cropSelect = document.getElementById('crop');
+  crops.forEach(c=>{
+    const opt = document.createElement('option'); opt.value = c.id; opt.textContent = c.name; cropSelect.appendChild(opt);
+  });
+  window.cropDB = crops;
+}
+function addDays(date, days){ const d = new Date(date); d.setDate(d.getDate() + days); return d.toISOString().split('T')[0]; }
+
+/* ============================
+   Soil adjustments (same rules)
+   ============================ */
+function soilAdjustments(soil){
+  if(soil === 'sandy') return { fert1Offset: 0, fert2Offset: 0, irrigationOffset: -2, fertMultiplier: 1.05, note:"Sandy soil: irrigation earlier; slight increase in fertilizer." };
+  if(soil === 'clay') return { fert1Offset: 2, fert2Offset: 5, irrigationOffset: 3, fertMultiplier: 0.95, note:"Clay soil: irrigation delayed; fertilizer reduced/delayed." };
+  return { fert1Offset: 0, fert2Offset: 0, irrigationOffset: 0, fertMultiplier: 1.00, note:"Loam soil: standard schedule." };
+}
+
+/* ============================
+   Reverse geocode (BigDataCloud - no key required)
+   - returns { city, principalSubdivision, countryCode }
+   ============================ */
+async function reverseGeocode(lat, lon){
+  try{
+    const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&localityLanguage=en`;
+    const resp = await fetch(url);
+    if(!resp.ok) throw new Error('Reverse geocode failed');
+    const json = await resp.json();
+    // json.locality || json.city || json.principalSubdivision || json.countryName
+    const city = json.locality || json.city || json.principalSubdivision || json.countryName || '';
+    const countryCode = json.countryCode || '';
+    return { city, countryCode, raw: json };
+  }catch(err){
+    console.warn('Reverse geocode error', err);
+    return { city: '', countryCode: '' };
+  }
+}
+
+/* ============================
+   Geolocation flow
+   - asks permission, reverse geocode, fills city & auto fetch weather
+   ============================ */
+async function askLocationAndFetch(){
+  const statusEl = document.getElementById('locStatus');
+  statusEl.style.display = 'inline-block';
+  statusEl.textContent = 'Requesting location permission...';
+
+  if(!navigator.geolocation){
+    statusEl.textContent = 'Geolocation not supported by this browser.';
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+    statusEl.textContent = `Got location: ${lat.toFixed(4)}, ${lon.toFixed(4)} — finding nearest city...`;
+    const rc = await reverseGeocode(lat, lon);
+    if(rc.city){
+      const cityStr = rc.countryCode ? `${rc.city}, ${rc.countryCode}` : rc.city;
+      document.getElementById('owCity').value = cityStr;
+      statusEl.textContent = `Detected location: ${cityStr} — fetching weather...`;
+      // autopopulate manual fields to show transparency
+      document.getElementById('weatherNotes').value = `Auto-detected by geolocation: ${cityStr}`;
+      // auto fetch weather (uses your OpenWeather API key field)
+      await fetchWeather();
+      statusEl.textContent = `Weather fetched for ${cityStr}`;
+      setTimeout(()=> statusEl.style.display='none', 4500);
+    } else {
+      statusEl.textContent = 'Could not determine city name — please enter city manually.';
+      setTimeout(()=> statusEl.style.display='none', 4500);
+    }
+  }, (err) => {
+    console.warn('Geolocation error', err);
+    if(err.code === 1){
+      // permission denied
+      document.getElementById('locStatus').textContent = 'Location permission denied. Please enter city manually.';
+    } else {
+      document.getElementById('locStatus').textContent = 'Unable to get location. Please enter city manually.';
+    }
+    setTimeout(()=> document.getElementById('locStatus').style.display='none', 4500);
+  }, { enableHighAccuracy:true, timeout:10000, maximumAge:60000 });
+}
+
+/* ============================
+   Weather fetch (OpenWeather) - same logic, uses owCity field
+   ============================ */
+async function fetchWeather(){
+  const apiKey = document.getElementById('owApi').value.trim();
+  const city = document.getElementById('owCity').value.trim();
+  // quick validation
+  if(!apiKey){
+    alert('Please add your OpenWeather API key in the API field.');
+    return manualWeather();
+  }
+  if(!city){
+    alert('City is empty. Please allow location or type a city (ex: Lucknow, IN).');
+    return manualWeather();
+  }
+
+  try{
+    const url = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&units=metric&appid=${encodeURIComponent(apiKey)}`;
+    const resp = await fetch(url);
+    if(!resp.ok){
+      // give helpful message
+      const txt = await resp.text().catch(()=> '');
+      throw new Error('OpenWeather API error: ' + (txt || resp.status));
+    }
+    const data = await resp.json();
+
+    // summarize next 3 days
+    const now = Date.now();
+    const threeDaysMs = 3 * 24 * 3600 * 1000;
+    let tempSum = 0, humSum = 0, count = 0, rainExpected = false;
+    for(const item of data.list){
+      const ts = item.dt * 1000;
+      if(ts - now > 0 && ts - now <= threeDaysMs){
+        tempSum += item.main.temp;
+        humSum += item.main.humidity;
+        count++;
+        if(item.rain && (item.rain["3h"]||0) > 0.5) rainExpected = true;
+        if(item.weather && item.weather.some(w => /rain|shower|thunder/i.test(w.main))) rainExpected = true;
+      }
+    }
+    if(count === 0) count = 1;
+    const temp = Math.round(tempSum / count);
+    const humidity = Math.round(humSum / count);
+    const notes = `Live forecast for ${city} (avg next 3 days): ${temp}°C, ${humidity}% humidity${rainExpected ? ', rain expected' : ''}.`;
+
+    // populate manual inputs for transparency
+    document.getElementById('manualTemp').value = temp;
+    document.getElementById('manualHum').value = humidity;
+    document.getElementById('weatherNotes').value = notes;
+
+    // return structured info
+    window.latestWeather = { temp, humidity, rainExpected, notes, source:'api' };
+    return window.latestWeather;
+
+  }catch(err){
+    console.warn('fetchWeather error', err);
+    alert('Weather API failed: ' + err.message + '\nYou can enter manual weather values or check city/API key. If running file://, run via local server.');
+    return manualWeather();
+  }
+}
+
+/* Manual weather fallback */
+function manualWeather(){
+  const t = parseFloat(document.getElementById('manualTemp').value) || null;
+  const h = parseFloat(document.getElementById('manualHum').value) || null;
+  const rainSel = document.getElementById('manualRain') ? document.getElementById('manualRain').value : 'no';
+  const rainExpected = rainSel !== 'no';
+  const notes = document.getElementById('weatherNotes').value || `Manual weather: ${t ?? 'N/A'}°C, ${h ?? 'N/A'}% hum, rain: ${rainSel}`;
+  window.latestWeather = { temp: t, humidity: h, rainExpected, notes, source:'manual' };
+  return Promise.resolve(window.latestWeather);
+}
+
+/* ============================
+   Pest rules & weather/soil adjustments
+   (simplified: same as previous logic)
+   ============================ */
+function assessPestRisk(crop, soilType, weather){
+  const issues = [];
+  const temp = weather.temp;
+  const hum = weather.humidity;
+  const rain = weather.rainExpected;
+  const sens = crop.pestSensitivity || 'medium';
+
+  if(hum !== null && hum >= 75 && temp !== null && temp >= 18 && temp <= 30){
+    const risk = sens === 'high' ? 'High' : 'Medium';
+    issues.push({ name:'Fungal disease (e.g. blast, sheath blight)', risk, advice:'Ensure good drainage, avoid waterlogging, apply recommended fungicide if signs observed.'});
+  }
+  if(temp !== null && temp >= 28 && hum !== null && hum < 60 && crop.pestWindow && crop.pestWindow <= 80){
+    const risk = sens === 'high' ? 'High' : 'Medium';
+    issues.push({ name:'Insect pests (stem borer / caterpillars)', risk, advice:'Monitor for eggs & larvae. Use traps or recommended insecticide when threshold exceeded.'});
+  }
+  if(soilType === 'clay' && rain){
+    issues.push({ name:'Waterlogging risk', risk:'Medium', advice:'Avoid over-irrigation, ensure drainage channels.'});
+  }
+  if(hum !== null && hum < 40 && temp !== null && temp > 34){
+    issues.push({ name:'Heat / moisture stress', risk:'Medium', advice:'Increase irrigation frequency and mulching to retain moisture.'});
+  }
+  if(issues.length === 0){
+    issues.push({ name:'No major risks predicted', risk:'Low', advice:'Continue regular scouting.'});
+  }
+  return issues;
+}
+
+function soilAdjustmentsSimple(soil){
+  if(soil === 'sandy') return { fert1Offset:0,fert2Offset:0,irrigationOffset:-2,fertMultiplier:1.05,note:'Sandy soil: irrigation earlier.'};
+  if(soil === 'clay') return { fert1Offset:2,fert2Offset:5,irrigationOffset:3,fertMultiplier:0.95,note:'Clay soil: irrigation delayed.'};
+  return { fert1Offset:0,fert2Offset:0,irrigationOffset:0,fertMultiplier:1.0,note:'Loam soil: standard.'};
+}
+
+/* ============================
+   Build calendar output
+   ============================ */
+async function generateCalendar(){
+  const cropId = document.getElementById('crop').value;
+  const sowDate = document.getElementById('sowDate').value;
+  const soilType = document.getElementById('soilType').value;
+  if(!cropId || !sowDate){
+    alert('Please select crop and sowing date.');
+    return;
+  }
+  const crop = window.cropDB.find(c => c.id === cropId);
+  // use latestWeather if available else fetch
+  const weather = window.latestWeather || await fetchWeather() || await manualWeather();
+
+  const soilAdj = soilAdjustmentsSimple(soilType);
+
+  // simple weather-based shifts (same idea as earlier)
+  let irrigationShift = 0, fert1Shift = 0, fert2Shift = 0;
+  if(weather.rainExpected){
+    irrigationShift += 3; fert1Shift += 2; fert2Shift += 2;
+  }
+  if(weather.temp !== null && weather.temp >= 36){
+    irrigationShift -= 2;
+  }
+
+  const landPrep = addDays(sowDate, -7);
+  const fert1Date = addDays(sowDate, crop.fert1 + soilAdj.fert1Offset + fert1Shift);
+  const fert2Date = addDays(sowDate, crop.fert2 + soilAdj.fert2Offset + fert2Shift);
+  const irrigationDate = addDays(sowDate, crop.irrigation + soilAdj.irrigationOffset + irrigationShift);
+  const pestDate = addDays(sowDate, crop.pestWindow);
+  const harvestDate = addDays(sowDate, crop.duration);
+
+  // fertilizer dosage (kg/acre) adjusted by soil multiplier
+  const fertDosage = {};
+  for(const k in crop.fertilizerDosageKgPerAcre){
+    fertDosage[k] = Math.round(crop.fertilizerDosageKgPerAcre[k] * soilAdj.fertMultiplier);
+  }
+
+  const issues = assessPestRisk(crop, soilType, weather);
+  let maxRisk = 'Low';
+  if(issues.some(i=>i.risk==='High')) maxRisk='High';
+  else if(issues.some(i=>i.risk==='Medium')) maxRisk='Medium';
+
+  // render output
+  const html = `
+    <div class="result">
+      <h2>📌 ${crop.name} — Calendar</h2>
+      <div class="weatherBox">
+        <div class="tag">${weather.source === 'api' ? 'Live forecast' : 'Manual weather'}</div>
+        <div class="tag">${weather.temp ?? 'N/A'}°C</div>
+        <div class="tag">${weather.humidity ?? 'N/A'}% hum</div>
+        <div class="tag">${weather.rainExpected ? 'Rain expected' : 'No rain'}</div>
+      </div>
+
+      <div style="margin-top:12px">
+        <p><b>Land Preparation:</b> <span>${landPrep}</span> <small style="margin-left:8px;color:#ddd"> (recommended 7 days before sowing)</small></p>
+        <p><b>1st Fertilizer Dose:</b> <span>${fert1Date}</span></p>
+        <p><b>2nd Fertilizer Dose:</b> <span>${fert2Date}</span></p>
+        <p><b>Irrigation Start:</b> <span>${irrigationDate}</span></p>
+        <p><b>Pest Monitoring Window:</b> <span>${pestDate}</span></p>
+        <p><b>Expected Harvest:</b> <span style="color:${(maxRisk==='High'? '#ff7b7b' : '#ffd54a')}">${harvestDate}</span></p>
+      </div>
+
+      <hr style="opacity:0.12;margin-top:10px"/>
+
+      <div>
+        <h3 style="margin:6px 0">🌱 Soil-based suggestion</h3>
+        <p>${soilAdj.note}</p>
+        <p><b>Adjusted fertilizer (kg/acre estimate):</b></p>
+        <div class="timeline">
+          ${Object.entries(fertDosage).map(([k,v]) => `<div class="tag">${k.toUpperCase()}: ${v} kg/acre</div>`).join('')}
+        </div>
+      </div>
+
+      <hr style="opacity:0.12;margin-top:10px"/>
+
+      <div>
+        <h3 style="margin:6px 0">⚠️ Pest & Disease Assessment — <span style="color:#fff;font-weight:800">${maxRisk} risk</span></h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${issues.map(i=>`<div style="min-width:220px" class="${i.risk === 'High' ? 'tag bad' : i.risk === 'Medium' ? 'tag warn' : 'tag good'}">
+            <strong>${i.name}</strong><br/><small>${i.risk} risk</small><div style="margin-top:6px;font-size:0.9rem;color:#111;padding:6px;background:rgba(255,255,255,0.06);border-radius:6px">${i.advice}</div>
+          </div>`).join('')}
+        </div>
+      </div>
+
+      <hr style="opacity:0.12;margin-top:10px"/>
+
+      <div>
+        <h3 style="margin:6px 0">🛠️ Weather Notes</h3>
+        <p>${weather.notes || ''}</p>
+      </div>
+    </div>
+  `;
+  document.getElementById('output').innerHTML = html;
+}
+
+/* small helper when user wants manual weather loaded */
+function useManualWeather(){
+  alert('Manual weather controls are visible — adjust values then click "Generate Calendar".');
+}
+
+/* ============================
+   Initialize
+   ============================ */
+loadCrops();
+
+// Ask for location on page load (user will be prompted)
+window.addEventListener('load', () => {
+  // small delay so UI paints first
+  setTimeout(() => {
+    askLocationAndFetch();
+  }, 450);
+});
+</script>
+</body>
+</html>

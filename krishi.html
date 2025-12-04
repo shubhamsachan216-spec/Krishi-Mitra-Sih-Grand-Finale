@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Krishi-Mitra AI Advisory</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Custom Fonts and Base Styles */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f7f9fc; }
+
+        /* Scrollbar Styling for Chat Container */
+        .chat-container { overflow-y: auto; scrollbar-width: thin; scrollbar-color: #888 #f1f1f1; }
+        .chat-container::-webkit-scrollbar { width: 8px; }
+        .chat-container::-webkit-scrollbar-track { background: #f1f1f1; }
+        .chat-container::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+        .chat-container::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        /* Message Bubble Styles and Animations */
+        .message-bubble {
+            border-radius: 1rem;
+            max-width: 80%;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            word-wrap: break-word;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* User Message Styling */
+        .user-message {
+            background-color: #4CAF50;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 0.25rem;
+            background-image: linear-gradient(135deg, #4CAF50, #66BB6A);
+        }
+
+        /* AI Message Styling */
+        .ai-message { background-color: #E3F2FD; color: #333; align-self: flex-start; border-bottom-left-radius: 0.25rem; display: flex; align-items: center; background-image: linear-gradient(135deg, #E3F2FD, #BBDEFB); }
+        .ai-message p { flex-grow: 1; margin: 0; }
+
+        /* Timestamp and Button Styling */
+        .message-timestamp { font-size: 0.65rem; color: rgba(255,255,255,0.7); margin-top: 0.25rem; align-self: flex-end; }
+        .ai-message .message-timestamp { color: rgba(51, 51, 51, 0.6); align-self: flex-start; }
+        .btn-primary { background-color: #3B82F6; color: white; border: none; cursor: pointer; transition: background-color 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .btn-primary:hover { background-color: #2563EB; }
+
+        /* Loading Dots Animation */
+        .loading-dots { display:flex; align-items:center; }
+        .loading-dots .dot { width: 8px; height:8px; margin:0 2px; background-color:#333; border-radius:50%; animation: bounce 1.4s infinite ease-in-out both; }
+        .loading-dots .dot:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dots .dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%,80%,100% { transform: scale(0); } 40% { transform: scale(1); } }
+
+        /* Speak-Again button styling inside AI bubble */
+        .speak-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            margin-left: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 8px;
+            border-radius: 8px;
+            transition: background 0.15s;
+        }
+        .speak-btn:hover { background: rgba(0,0,0,0.05); }
+
+        /* Floating voice toggle */
+        .voice-toggle {
+            position: fixed;
+            right: 18px;
+            bottom: 18px;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 999px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+            border: 1px solid rgba(0,0,0,0.06);
+            user-select: none;
+        }
+        .voice-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .voice-dot.on { background: #34D399; box-shadow: 0 0 6px rgba(52,211,153,0.3); }
+        .voice-dot.off { background: #F87171; box-shadow: 0 0 6px rgba(248,113,113,0.2); }
+
+        /* small responsive tweaks */
+        @media (max-width: 900px) {
+            .hidden-lg { display: none; }
+            .md\\:w-1\\/4 { width: 100% !important; }
+            .md\\:w-1\\/2 { width: 100% !important; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col min-h-screen">
+    <style>
+        html, body { margin: 0; padding: 0; height: 100vh; width: 100%; }
+        body { background-size: cover; background-repeat: no-repeat; background-attachment: fixed; }
+    </style>
+
+    <body class="flex flex-col items-center justify-center min-h-screen bg-center relative" style="background-image: url('ab.jpg');">
+        <div class="absolute inset-0 bg-black bg-opacity-0"></div>
+
+        <header class="bg-gradient-to-r from-gray-800 to-gray-900 text-white p-4 shadow-lg">
+            <div class="container mx-auto flex justify-between items-center">
+                <h1 class="text-xl font-bold"><i class="fas fa-leaf text-green-300 mr-2"></i>Krishi-Mitra AI Advisory</h1>
+                <div class="flex items-center space-x-2 text-sm md:text-md">
+                    <i class="fas fa-user-circle text-lg text-green-300"></i>
+                    <span>Welcome,</span>
+                    <span id="username-display" class="font-semibold text-green-300"></span>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex-grow flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl shadow-2xl p-6 md:p-8 w-11/12 max-w-7xl flex flex-col md:flex-row space-y-6 md:space-y-0 md:space-x-8 transform transition-all duration-500 max-h-[90vh] h-full">
+
+                <div class="md:w-1/4 p-4 bg-gradient-to-br from-blue-50 to-green-50 rounded-2xl flex flex-col justify-between shadow-inner h-full">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center space-x-2">
+                                <i class="fas fa-leaf text-green-600 text-3xl"></i>
+                                <h1 class="text-3xl font-bold text-gray-800">Krishi-Mitra</h1>
+                            </div>
+                        </div>
+                        <p class="text-gray-600 text-sm mb-6">AI-Powered Farmer Advisory</p>
+                        <div class="grid grid-cols-2 gap-2 mb-6">
+                            <button id="lang-en" class="bg-gray-200 text-gray-800 text-sm px-3 py-1 rounded-full hover:bg-gray-300 transition-colors">English</button>
+                            <button id="lang-hi" class="bg-gray-200 text-gray-800 text-sm px-3 py-1 rounded-full hover:bg-gray-300 transition-colors">हिन्दी</button>
+                            <button id="lang-ta" class="bg-gray-200 text-gray-800 text-sm px-3 py-1 rounded-full hover:bg-gray-300 transition-colors">தமிழ்</button>
+                            <button id="lang-kn" class="bg-gray-200 text-gray-800 text-sm px-3 py-1 rounded-full hover:bg-gray-300 transition-colors">ಕನ್ನಡ</button>
+                            <button id="lang-ml" class="bg-gray-200 text-gray-800 text-sm px-3 py-1 rounded-full hover:bg-gray-300 transition-colors">മലയാളം</button>
+                        </div>
+                        <div class="mt-8 flex flex-col items-center justify-center space-y-4">
+                           <button id="dailyAdvisoryButton" class="btn-primary w-full p-3 rounded-xl shadow-lg">
+                                <i class="fas fa-sun mr-2"></i>✨ Daily Advisory
+                           </button>
+                           <button id="imageAnalysisButton" class="btn-primary w-full p-3 rounded-xl shadow-lg">
+                                <i class="fas fa-camera mr-2"></i>✨ Image Analysis
+                           </button>
+                           <button id="govtSchemesButton" class="btn-primary w-full p-3 rounded-xl shadow-lg">
+                                <i class="fas fa-hand-holding-usd mr-2"></i>✨ Govt Schemes
+                            </button>
+                            <button id="marketPriceButton" class="btn-primary w-full p-3 rounded-xl shadow-lg">
+                                <i class="fas fa-chart-line mr-2"></i>✨ Market Price
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4 mt-8">
+                        <div class="flex items-start">
+                            <i class="fas fa-microscope text-blue-500 mr-3 mt-1"></i>
+                            <div>
+                                <h3 class="font-semibold text-gray-800">Pest & Disease Detection</h3>
+                                <p class="text-gray-600 text-sm">Analyze images of crops to identify issues and get solutions.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <i class="fas fa-cloud-sun text-blue-500 mr-3 mt-1"></i>
+                            <div>
+                                <h3 class="font-semibold text-gray-800">Weather & Climate Insights</h3>
+                                <p class="text-gray-600 text-sm">Get hyper-local forecasts and warnings for your region.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <i class="fas fa-seedling text-blue-500 mr-3 mt-1"></i>
+                            <div>
+                                <h3 class="font-semibold text-gray-800">Crop Management Tips</h3>
+                                <p class="text-gray-600 text-sm">Receive personalized advice on sowing, irrigation, and harvesting.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <i class="fas fa-bullhorn text-blue-500 mr-3 mt-1"></i>
+                            <div>
+                                <h3 class="font-semibold text-gray-800">Market Price & Schemes</h3>
+                                <p class="text-gray-600 text-sm">Stay updated on market prices and government schemes.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="md:w-1/2 flex flex-col p-4 bg-gray-50 rounded-2xl h-full">
+                    <div id="chat-container" class="chat-container flex flex-col p-4 space-y-4 flex-grow">
+                        <div class="ai-message message-bubble self-start shadow-md">
+                            <p>Hello! I am Krishi-Mitra, your AI assistant. How can I help you with your farm today?</p>
+                            <span class="message-timestamp"></span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center space-x-2 mt-4">
+                        <input type="text" id="userInput" class="flex-grow p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800" placeholder="Ask your question here...">
+                        <button id="micButton" class="btn-primary p-3 rounded-xl shadow-lg">
+                               <i class="fas fa-microphone"></i>
+                        </button>
+                        <button id="sendButton" class="btn-primary p-3 rounded-xl shadow-lg">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="hidden lg:flex lg:w-1/4 flex-col bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl p-4 shadow-inner space-y-4 h-full">
+                    <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                        <i class="fas fa-hand-holding-usd mr-2 text-green-600"></i> Govt Schemes
+                    </h2>
+                    <div class="bg-white rounded-xl shadow-md p-3 border-l-4 border-green-500 hover:shadow-lg transition">
+                        <h3 class="font-semibold text-gray-800 text-sm">PM Kisan Samman Nidhi</h3>
+                        <p class="text-xs text-gray-600">₹6000 annually to small & marginal farmers.</p>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-3 border-l-4 border-blue-500 hover:shadow-lg transition">
+                        <h3 class="font-semibold text-gray-800 text-sm">Soil Health Card</h3>
+                        <p class="text-xs text-gray-600">Free soil testing & fertilizer advice.</p>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-3 border-l-4 border-yellow-500 hover:shadow-lg transition">
+                        <h3 class="font-semibold text-gray-800 text-sm">Crop Insurance (PMFBY)</h3>
+                        <p class="text-xs text-gray-600">Protection from crop losses due to disasters.</p>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-3 border-l-4 border-purple-500 hover:shadow-lg transition">
+                            <h3 class="font-semibold text-gray-800 text-sm">Kisan Credit Card</h3>
+                            <p class="text-xs text-gray-600">Low-interest loans for seeds, fertilizers & equipment.</p>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-md p-3 border-l-4 border-red-500 hover:shadow-lg transition">
+                            <h3 class="font-semibold text-gray-800 text-sm">Pradhan Mantri Krishi Sinchai Yojana</h3>
+                            <p class="text-xs text-gray-600">Improved irrigation facilities to ensure water for all farms.</p>
+                    </div>
+
+                    <button id="moreSchemes" class="btn-primary w-full rounded-xl mt-2">
+                        <i class="fas fa-plus-circle mr-1"></i> View More
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
+        <div id="imageModal" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center hidden">
+            <div class="bg-white p-6 rounded-xl shadow-xl w-11/12 max-w-md">
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">Upload an Image</h2>
+                <p class="mb-4 text-gray-600">Please select an image of your crop to get an instant analysis for pests or diseases.</p>
+                <div class="flex flex-col items-center space-y-4">
+                    <input type="file" id="modalImageInput" accept="image/*" class="p-2 border border-gray-300 rounded-lg w-full">
+                    <button id="modalUploadButton" class="btn-primary w-full p-3 rounded-lg mt-2">Upload Image</button>
+                    <button id="modalCloseButton" class="w-full p-3 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="alertModal" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center hidden">
+            <div class="bg-white p-6 rounded-xl shadow-xl w-11/12 max-w-md text-center">
+                <h2 id="alertTitle" class="text-xl font-bold mb-4 text-gray-800"></h2>
+                <p id="alertMessage" class="mb-4 text-gray-600"></p>
+                <button id="alertCloseButton" class="btn-primary p-3 rounded-lg mt-2 w-full">OK</button>
+            </div>
+        </div>
+
+        <div id="voiceToggle" class="voice-toggle" title="Toggle voice on / off">
+            <div id="voiceDot" class="voice-dot on"></div>
+            <div id="voiceLabel" class="font-medium text-sm">Voice: ON</div>
+            <button id="voiceToggleBtn" class="btn-primary p-2 rounded-full" style="padding:6px 8px;">
+                <i id="voiceIcon" class="fas fa-volume-up"></i>
+            </button>
+        </div>
+
+    </body>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const sendButton = document.getElementById('sendButton');
+            const userInput = document.getElementById('userInput');
+            const chatContainer = document.getElementById('chat-container');
+            const dailyAdvisoryButton = document.getElementById('dailyAdvisoryButton');
+            const imageAnalysisButton = document.getElementById('imageAnalysisButton');
+            const govtSchemesButton = document.getElementById('govtSchemesButton');
+            const marketPriceButton = document.getElementById('marketPriceButton');
+            const micButton = document.getElementById('micButton');
+            const langButtons = {
+                en: document.getElementById('lang-en'),
+                hi: document.getElementById('lang-hi'),
+                ta: document.getElementById('lang-ta'),
+                kn: document.getElementById('lang-kn'),
+                ml: document.getElementById('lang-ml') // ADDED MALAYALAM BUTTON REFERENCE
+            };
+            const imageModal = document.getElementById('imageModal');
+            const modalImageInput = document.getElementById('modalImageInput');
+            const modalUploadButton = document.getElementById('modalUploadButton');
+            const modalCloseButton = document.getElementById('modalCloseButton');
+            const alertModal = document.getElementById('alertModal');
+            const alertTitle = document.getElementById('alertTitle');
+            const alertMessage = document.getElementById('alertMessage');
+            const alertCloseButton = document.getElementById('alertCloseButton');
+            const usernameDisplay = document.getElementById('username-display');
+
+            // Voice toggle elements
+            const voiceToggle = document.getElementById('voiceToggle');
+            const voiceToggleBtn = document.getElementById('voiceToggleBtn');
+            const voiceDot = document.getElementById('voiceDot');
+            const voiceLabel = document.getElementById('voiceLabel');
+            const voiceIcon = document.getElementById('voiceIcon');
+
+            // --- Set Default Username ---
+            usernameDisplay.textContent = 'user';
+
+            // --- Language and UI State ---
+            let currentLanguage = 'en';
+
+            // --- Voice state (persisted) ---
+            let voiceEnabled = true;
+            try {
+                const saved = localStorage.getItem('krishi_voice_enabled');
+                if (saved !== null) voiceEnabled = saved === 'true';
+            } catch (e) { voiceEnabled = true; }
+
+            const updateVoiceUI = () => {
+                if (voiceEnabled) {
+                    voiceDot.classList.remove('off'); voiceDot.classList.add('on');
+                    voiceLabel.textContent = 'Voice: ON';
+                    voiceIcon.className = 'fas fa-volume-up';
+                } else {
+                    voiceDot.classList.remove('on'); voiceDot.classList.add('off');
+                    voiceLabel.textContent = 'Voice: OFF';
+                    voiceIcon.className = 'fas fa-volume-mute';
+                }
+            };
+            updateVoiceUI();
+
+            voiceToggleBtn.addEventListener('click', () => {
+                voiceEnabled = !voiceEnabled;
+                try { localStorage.setItem('krishi_voice_enabled', voiceEnabled); } catch (e) {}
+                updateVoiceUI();
+                // Stop any ongoing speech when turned off
+                if (!voiceEnabled && window.speechSynthesis) window.speechSynthesis.cancel();
+            });
+
+            // --- CONSTANTS ---
+            const GEMINI_API_KEY = "AIzaSyDa-RTv3c-1B2PUhYtf_zyFaH4UpOMGf3g";
+            const CHAT_MODEL = "gemini-2.5-flash";
+
+            const welcomeMessages = {
+                'en': 'Hello! I am Krishi-Mitra, your AI assistant. How can I help you with your farm today?',
+                'hi': 'नमस्ते! मैं कृषि-मित्र, आपका एआई सहायक हूँ। मैं आज आपके खेत में कैसे मदद कर सकता हूँ?',
+                'ta': 'வணக்கம்! நான் கிருஷி-மித்ரா, உங்கள் AI உதவியாளர். உங்கள் பண்ணைக்கு இன்று எப்படி உதவ முடியும்?',
+                'kn': 'ನಮಸ್ಕಾರ! ನಾನು ಕೃಷಿ-ಮಿತ್ರ, ನಿಮ್ಮ AI ಸಹಾಯಕ. ನಿಮ್ಮ ಕೃಷಿಗೆ ಇಂದು ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು?',
+                'ml': 'നമസ്കാരം! ഞാൻ കൃഷി-മിത്ര, നിങ്ങളുടെ AI സഹായി. ഇന്ന് നിങ്ങളുടെ കൃഷിയിടത്തിൽ ഞാൻ എങ്ങനെ സഹായിക്കും?' // ADDED MALAYALAM
+            };
+            const placeholders = {
+                'en': 'Ask your question here...',
+                'hi': 'यहां अपना सवाल पूछें...',
+                'ta': 'இங்கே உங்கள் கேள்வியைக் கேளுங்கள்...',
+                'kn': 'ಇಲ್ಲಿ ನಿಮ್ಮ ಪ್ರಶ್ನೆಯನ್ನು ಕೇಳಿ...',
+                'ml': 'നിങ്ങളുടെ ചോദ്യം ഇവിടെ ചോദിക്കുക...' // ADDED MALAYALAM
+            };
+            const systemPrompts = {
+                'en': 'You are a helpful and knowledgeable AI assistant for farmers. Your name is Krishi-Mitra. Provide concise, easy-to-understand advice in a friendly and supportive tone. Reply in points, not in paragraphs. Do not answer questions not related to agriculture. Always reply in English.',
+                'hi': 'आप किसानों के लिए एक सहायक और जानकार एआई सहायक हैं। आपका नाम कृषि-मित्र है। संक्षेप में, समझने में आसान और दोस्ताना और सहायक लहजे में सलाह दें। पैराग्राफ में नहीं, बल्कि बिंदुओं में उत्तर दें। कृषि से संबंधित नहीं होने वाले सवालों का जवाब न दें। हमेशा हिंदी में जवाब दें।',
+                'ta': 'நீங்கள் விவசாயிகளுக்கான ஒரு உதவிகரமான மற்றும் அறிவுள்ள AI உதவியாளர். உங்கள் பெயர் கிருஷி-மித்ரா. சுருக்கமாகவும், எளிதாகவும் புரிந்துகொள்ளக்கூடிய ஆலோசனையை நட்பு மற்றும் ஆதரவான தொனியில் வழங்குங்கள். பத்திகளில் அல்லாமல், புள்ளிகளாக பதிலளிக்கவும். விவசாயம் தொடர்பான கேள்விகளுக்கு பதிலளிக்க வேண்டாம். எப்போதும் தமிழில் பதிலளிக்கவும்.',
+                'kn': 'ನೀವು ರೈತರಿಗೆ ಸಹಾಯ ಮಾಡುವ ಮತ್ತು ಜ್ಞಾನವುಳ್ಳ AI ಸಹಾಯಕ. ನಿಮ್ಮ ಹೆಸರು ಕೃಷಿ-ಮಿತ್ರ. ಸಂಕ್ಷಿಪ್ತವಾಗಿ, ಸುಲಭವಾಗಿ ಅರ್ಥಮಾಡಿಕೊಳ್ಳುವ ಮತ್ತು ಸ್ನೇಹಪರ ಹಾಗೂ ಬೆಂಬಲಿಸುವ ಸ್ವರದಲ್ಲಿ ಸಲಹೆ ನೀಡಿ. ಪ್ಯಾರಾಗ್ರಾಫ್‌ಗಳಲ್ಲಿ ಅಲ್ಲ, ಆದರೆ ಪಾಯಿಂಟ್‌ಗಳಲ್ಲಿ ಉತ್ತರಿಸಿ. ಕೃಷಿಗೆ ಸಂಬಂಧಪಡದ ಪ್ರಶ್ನೆಗಳಿಗೆ ಉತ್ತರಿಸಬೇಡಿ. ಯಾವಾಗಲೂ ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸಿ.',
+                'ml': 'നിങ്ങൾ കർഷകർക്കുള്ള ഒരു സഹായകരമായ AI അസിസ്റ്റന്റാണ്. നിങ്ങളുടെ പേര് കൃഷി-മിത്ര. സംക്ഷിപ്തവും, എളുപ്പത്തിൽ മനസ്സിലാക്കാവുന്നതും, സൗഹൃദപരവും പിന്തുണ നൽകുന്നതുമായ രീതിയിൽ ഉപദേശം നൽകുക. പാരഗ്രാഫുകളിലല്ലാതെ, പോയിന്റുകളായി മറുപടി നൽകുക. കൃഷിയുമായി ബന്ധമില്ലാത്ത ചോദ്യങ്ങൾക്ക് ഉത്തരം നൽകരുത്. എല്ലാപ്പോഴും മലയാളത്തിൽ മറുപടി നൽകുക.' // ADDED MALAYALAM
+            };
+
+            const updateUIForLanguage = (lang) => {
+                currentLanguage = lang;
+                const userInputPlaceholder = document.getElementById('userInput');
+                userInputPlaceholder.placeholder = placeholders[currentLanguage];
+
+                Object.values(langButtons).forEach(btn => {
+                    btn.classList.remove('bg-green-500', 'text-white');
+                    btn.classList.add('bg-gray-200', 'text-gray-800');
+                });
+                langButtons[currentLanguage].classList.remove('bg-gray-200', 'text-gray-800');
+                langButtons[currentLanguage].classList.add('bg-green-500', 'text-white');
+                const firstAiMessageP = document.querySelector('#chat-container .ai-message p');
+                if (firstAiMessageP) firstAiMessageP.textContent = welcomeMessages[currentLanguage];
+            };
+
+            // Initial UI update
+            updateUIForLanguage(currentLanguage);
+
+            langButtons.en.addEventListener('click', () => updateUIForLanguage('en'));
+            langButtons.hi.addEventListener('click', () => updateUIForLanguage('hi'));
+            langButtons.ta.addEventListener('click', () => updateUIForLanguage('ta'));
+            langButtons.kn.addEventListener('click', () => updateUIForLanguage('kn'));
+            langButtons.ml.addEventListener('click', () => updateUIForLanguage('ml')); // ADDED MALAYALAM LISTENER
+
+            function showAlert(title, message) {
+                alertTitle.textContent = title;
+                alertMessage.textContent = message;
+                alertModal.classList.remove('hidden');
+            }
+            alertCloseButton.addEventListener('click', () => {
+                alertModal.classList.add('hidden');
+            });
+
+            // --- Text-to-Speech function ---
+            function speakText(text) {
+                if (!voiceEnabled) return;
+                if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
+                    // Browser doesn't support TTS
+                    return;
+                }
+                try {
+                    window.speechSynthesis.cancel(); // stop any existing speech
+                } catch (e) {}
+
+                const utter = new SpeechSynthesisUtterance(text);
+                // UPDATED TTS LANG CONFIGURATION
+                utter.lang =
+                    currentLanguage === "hi" ? "hi-IN" :
+                    currentLanguage === "ta" ? "ta-IN" :
+                    currentLanguage === "kn" ? "kn-IN" :
+                    currentLanguage === "ml" ? "ml-IN" : // ADDED MALAYALAM
+                    "en-IN";
+
+                // Slightly adjust pitch/rate for clarity
+                utter.pitch = 1;
+                utter.rate = 1;
+                // Start speaking
+                try {
+                    window.speechSynthesis.speak(utter);
+                } catch (e) {
+                    console.error("SpeechSynthesis error:", e);
+                }
+            }
+
+            // --- Chat Message Functions ---
+            const addMessage = (text, sender, isImage = false) => {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message-bubble', 'shadow-md');
+                if (sender === 'user') {
+                    messageDiv.classList.add('user-message', 'self-end');
+                } else {
+                    messageDiv.classList.add('ai-message', 'self-start');
+                }
+
+                if (isImage) {
+                    const imageElement = document.createElement('img');
+                    imageElement.src = text;
+                    imageElement.classList.add('w-full', 'rounded-lg');
+                    messageDiv.appendChild(imageElement);
+                } else {
+                    const messageContent = document.createElement('p');
+                    const points = text.split('\n').filter(line => line.trim() !== '');
+                    if (points.length > 1) {
+                        const ul = document.createElement('ul');
+                        ul.classList.add('list-disc', 'list-inside');
+                        points.forEach(point => {
+                            let cleanedPoint = point.trim();
+                            if (cleanedPoint.startsWith('* ')) cleanedPoint = cleanedPoint.substring(2).trim();
+                            if (cleanedPoint.startsWith('- ')) cleanedPoint = cleanedPoint.substring(2).trim();
+                            if (cleanedPoint) {
+                                const li = document.createElement('li');
+                                li.textContent = cleanedPoint;
+                                ul.appendChild(li);
+                            }
+                        });
+                        messageContent.appendChild(ul);
+                    } else {
+                        messageContent.textContent = text;
+                    }
+                    messageDiv.appendChild(messageContent);
+                }
+
+                const timestamp = document.createElement('span');
+                timestamp.classList.add('message-timestamp');
+                timestamp.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                messageDiv.appendChild(timestamp);
+
+                // If AI message (and not image) add Speak Again button and auto-speak (if enabled)
+                if (sender === 'ai' && !isImage) {
+                    const speakAgainBtn = document.createElement('button');
+                    speakAgainBtn.classList.add('speak-btn');
+                    speakAgainBtn.innerHTML = `<i class="fas fa-volume-up"></i><span class="text-sm">Speak Again</span>`;
+                    speakAgainBtn.title = "Play audio for this response";
+                    speakAgainBtn.addEventListener('click', () => {
+                        // create clean text without list markers for better speech
+                        let playable = '';
+                        if (typeof text === 'string') {
+                            playable = text.replace(/[\*\-]/g, ' ');
+                        } else {
+                            playable = String(text);
+                        }
+                        speakText(playable);
+                    });
+
+                    // place speak button after the content but before timestamp
+                    // insert before timestamp element
+                    messageDiv.insertBefore(speakAgainBtn, timestamp);
+                }
+
+                chatContainer.appendChild(messageDiv);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+
+                // Auto-speak AI messages
+                if (sender === 'ai' && !isImage) {
+                    let plainText = '';
+                    if (typeof text === 'string') plainText = text.replace(/[\*\-]/g, ' ');
+                    else plainText = String(text);
+                    // Delay a tiny bit so speech doesn't overlap with UI rendering
+                    setTimeout(() => { speakText(plainText); }, 120);
+                }
+            };
+
+            const addLoadingDots = () => {
+                const loadingDiv = document.createElement('div');
+                loadingDiv.classList.add('ai-message', 'message-bubble', 'self-start', 'shadow-md');
+                loadingDiv.innerHTML = `
+                    <div class="loading-dots">
+                        <div class="dot"></div>
+                        <div class="dot"></div>
+                        <div class="dot"></div>
+                    </div>
+                `;
+                chatContainer.appendChild(loadingDiv);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+                return loadingDiv;
+            };
+
+            const removeLoadingDots = (loadingDiv) => {
+                if (loadingDiv) loadingDiv.remove();
+            };
+
+            async function fetchWithRetry(url, options, maxRetries = 5, delay = 1000) {
+                for (let i = 0; i < maxRetries; i++) {
+                    try {
+                        const response = await fetch(url, options);
+                        if (response.ok) return response;
+                        else if ((response.status === 503 || response.status === 429) && i < maxRetries - 1) {
+                            await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
+                        } else {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                    } catch (error) {
+                        if (i < maxRetries - 1) {
+                            await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
+                        } else {
+                            throw error;
+                        }
+                    }
+                }
+            }
+
+            const callGeminiAPI = async (prompt, image = null, grounded = false) => {
+                const loadingMessage = addLoadingDots();
+                try {
+                    const apiKey = GEMINI_API_KEY;
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${CHAT_MODEL}:generateContent?key=${apiKey}`;
+                    const systemPrompt = systemPrompts[currentLanguage];
+                    const parts = [{ text: `${systemPrompt} ${prompt}` }];
+                    if (image) {
+                        parts.push({
+                            inlineData: {
+                                mimeType: "image/png",
+                                data: image.split(',')[1] // Extract base64 data
+                            }
+                        });
+                    }
+
+                    const payload = {
+                        contents: [{ role: "user", parts }],
+                        model: CHAT_MODEL,
+                        tools: grounded ? [{ "google_search": {} }] : undefined,
+                    };
+
+                    const response = await fetchWithRetry(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errorBody = await response.json();
+                        console.error("Gemini API Error Response:", errorBody);
+                        throw new Error(`HTTP error! status: ${response.status} - ${errorBody?.error?.message || response.statusText}`);
+                    }
+
+                    const result = await response.json();
+                    const aiResponseText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't generate a response. Please try again.";
+
+                    removeLoadingDots(loadingMessage);
+                    addMessage(aiResponseText, "ai");
+                } catch (error) {
+                    console.error("API call failed:", error);
+                    removeLoadingDots(loadingMessage);
+                    addMessage(`I'm sorry, I encountered an error and cannot generate a response right now. Please check the browser Console (F12) for the exact error message.`, "ai");
+                    showAlert("API Error", `A connection error occurred. Check the browser Console (F12) for a red error message and status code (400, 403, 429) to determine the cause.`);
+                }
+            };
+
+            const handleSendMessage = () => {
+                const text = userInput.value.trim();
+                if (text === '') return;
+                addMessage(text, 'user');
+                callGeminiAPI(text);
+                userInput.value = '';
+            };
+
+            // --- Event Listeners ---
+            sendButton.addEventListener('click', handleSendMessage);
+            userInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    handleSendMessage();
+                }
+            });
+
+            // --- Feature Button Logic ---
+            dailyAdvisoryButton.addEventListener('click', () => {
+                const prompts = {
+                    'en': 'What is the weather like today in Greater Noida, Uttar Pradesh, India, and based on this, provide a daily farming advisory for local crops like rice, wheat, and sugarcane. The advisory should be in a friendly tone and in points.',
+                    'hi': 'आज ग्रेटर नोएडा, उत्तर प्रदेश, भारत में मौसम कैसा है, और इसके आधार पर, चावल, गेहूं और गन्ने जैसी स्थानीय फसलों के लिए दैनिक कृषि सलाह प्रदान करें। सलाह एक दोस्ताना, संवादी स्वर में होनी चाहिए और बिंदुओं में हो।',
+                    'ta': 'இன்று கிரேட்டர் நொய்டாவில், உத்தரப் பிரதேசம், இந்தியா, வானிலை எப்படி உள்ளது, அதனடிப்படையில், அரிசி, கோதுமை, மற்றும் கரும்பு போன்ற உள்ளூர் பயிர்களுக்கான தினசரி விவசாய ஆலோசனையை வழங்கவும். இந்த ஆலோசனை ஒரு விவசாயியுடன் நேரடியாகப் பேசுவது போல் ஒரு நட்பு, உரையாடல் தொனியில் இருக்க வேண்டும். மேலும், புள்ளிகளாக பதிலளிக்கவும்.',
+                    'kn': 'ಇಂದು ಗ್ರೇಟರ್ ನೋಯ್ಡಾ, ಉತ್ತರ ಪ್ರದೇಶ, ಭಾರತದಲ್ಲಿ ಹವಾಮಾನ ಹೇಗಿದೆ, ಮತ್ತು ಇದರ ಆಧಾರದ ಮೇಲೆ, ಭತ್ತ, ಗೋಧಿ ಮತ್ತು ಕಬ್ಬು ಮುಂತಾದ ಸ್ಥಳೀಯ ಬೆಳೆಗಳಿಗೆ ದೈನಂದಿನ ಕೃಷಿ ಸಲಹೆಯನ್ನು ಒದಗಿಸಿ. ಸಲಹೆಯು ರೈತರೊಂದಿಗೆ ನೇರವಾಗಿ ಮಾತನಾಡುವಂತೆ ಸ್ನೇಹಪರ, ಸಂವಾದಾತ್ಮಕ ಧ್ವನಿಯಲ್ಲಿರಬೇಕು ಮತ್ತು ಪಾಯಿಂಟ್‌ಗಳಲ್ಲಿ ಉತ್ತರಿಸಿ.',
+                    'ml': 'ഇന്ന് ഗ്രേറ്റർ നോയിഡയിൽ, ഉത്തർപ്രദേശ്, ഇന്ത്യ, കാലാവസ്ഥ എങ്ങനെയാണ്, ഇതിന്റെ അടിസ്ഥാനത്തിൽ, നെല്ല്, ഗോതമ്പ്, കരിമ്പ് തുടങ്ങിയ പ്രാദേശിക വിളകൾക്ക് ഒരു ദിവസത്തെ കാർഷിക ഉപദേശം നൽകുക. ഉപദേശം സൗഹൃദപരവും പോയിന്റുകളിലുമായിരിക്കണം.' // ADDED MALAYALAM
+                };
+                const prompt = prompts[currentLanguage] || prompts['en'];
+                addMessage("I am fetching your daily advisory...", 'user');
+                callGeminiAPI(prompt, null, true);
+            });
+
+            imageAnalysisButton.addEventListener('click', () => {
+                imageModal.classList.remove('hidden');
+            });
+
+            govtSchemesButton.addEventListener('click', () => {
+                const prompts = {
+                    'en': 'What are the most recent local government schemes and subsidies available for farmers in Greater Noida, Uttar Pradesh, India? Please list them in a concise, bulleted format.',
+                    'hi': 'ग्रेटर नोएडा, उत्तर प्रदेश, भारत में किसानों के लिए उपलब्ध नवीनतम स्थानीय सरकारी योजनाएं और सब्सिडी क्या हैं? कृपया उन्हें एक संक्षिप्त, बुलेटेड प्रारूप में सूचीबद्ध करें।',
+                    'ta': 'கிரேட்டர் நொய்டாவில், உத்தரப் பிரதேசம், இந்தியாவில் உள்ள விவசாயிகளுக்கான சமீபத்திய உள்ளூர் அரசு திட்டங்கள் மற்றும் மானியங்கள் யாவை? அவற்றை ஒரு சுருக்கமான, புல்லட் வடிவத்தில் பட்டியலிடவும்.',
+                    'kn': 'ಗ್ರೇಟರ್ ನೋಯ್ಡಾ, ಉತ್ತರ ಪ್ರದೇಶ, ಭಾರತೀಯ ರೈತರಿಗೆ ಲಭ್ಯವಿರುವ ಇತ್ತೀಚಿನ ಸ್ಥಳೀಯ ಸರಕಾರ ಯೋಜನೆಗಳು ಯಾವುವು? ದಯವಿಟ್ಟು ಅವುಗಳನ್ನು ಸಂಕ್ಷಿಪ್ತ, ಬುಲೆಟ್ ರೂಪದಲ್ಲಿ ಪಟ್ಟಿ ಮಾಡಿ.',
+                    'ml': 'ഗ്രേറ്റർ നോയിഡയിൽ, ഉത്തർപ്രദേശ്, ഇന്ത്യയിലെ കർഷകർക്ക് ലഭ്യമായ ഏറ്റവും പുതിയ പ്രാദേശിക സർക്കാർ പദ്ധതികളും സബ്‌സിഡികളും എന്തൊക്കെയാണ്? ദയവായി അവയെ സംക്ഷിപ്തവും പോയിന്റുകളിലുമുള്ള ഫോർമാറ്റിൽ പട്ടികപ്പെടുത്തുക.' // ADDED MALAYALAM
+                };
+                const prompt = prompts[currentLanguage] || prompts['en'];
+                addMessage("I am searching for the latest government schemes for you...", 'user');
+                callGeminiAPI(prompt, null, true);
+            });
+
+            marketPriceButton.addEventListener('click', () => {
+                const prompts = {
+                    'en': 'What are the current market prices for rice, wheat, and sugarcane in Greater Noida, Uttar Pradesh, India? Provide the information in a clear, easy-to-read format.',
+                    'hi': 'ग्रेटर नोएडा, उत्तर प्रदेश, भारत में चावल, गेहूं और गन्ने के वर्तमान बाजार भाव क्या हैं? जानकारी को एक स्पष्ट, पढ़ने में आसान प्रारूप में प्रदान करें।',
+                    'ta': 'கிரேட்டர் நொய்டாவில், உத்தரப் பிரதேசம், இந்தியா, அரிசி, கோதுமை, மற்றும் கரும்பு ஆகியவற்றின் தற்போதைய சந்தை விலைகள் என்ன? தகவலைத் தெளிவான, எளிதாகப் படிக்கக்கூடிய வடிவத்தில் வழங்கவும்.',
+                    'kn': 'ಗ್ರೇಟರ್ ನೋಯ್ಡಾ, ಉತ್ತರ ಪ್ರದೇಶ, ಭಾರತದಲ್ಲಿ ಭತ್ತ, ಗೋಧಿ ಮತ್ತು ಕಬ್ಬಿನ ಪ್ರಸ್ತುತ ಮಾರುಕಟ್ಟೆ ಬೆಲೆಗಳು ಯಾವುವು? ಮಾಹಿತಿಯನ್ನು ಸ್ಪರ್ಶಿತ, ಸುಲಭವಾಗಿ ಓದಲ್ಪಡುವ ಸ್ವರೂಪದಲ್ಲಿ ನೀಡಿ.',
+                    'ml': 'ഗ്രേറ്റർ നോയിഡയിൽ, ഉത്തർപ്രദേശ്, ഇന്ത്യയിലെ നെല്ല്, ഗോതമ്പ്, കരിമ്പ് എന്നിവയുടെ നിലവിലെ മാർക്കറ്റ് വിലകൾ എന്തൊക്കെയാണ്? വിവരങ്ങൾ വ്യക്തവും എളുപ്പത്തിൽ വായിക്കാവുന്നതുമായ ഫോർമാറ്റിൽ നൽകുക.' // ADDED MALAYALAM
+                };
+                const prompt = prompts[currentLanguage] || prompts['en'];
+                addMessage("I am fetching the latest market prices for you...", "user");
+                callGeminiAPI(prompt, null, true);
+            });
+
+            // --- Mic Button ---
+            micButton.addEventListener('click', () => {
+                if (!('SpeechRecognition' in window) && !('webkitSpeechRecognition' in window)) {
+                    showAlert("Feature Not Supported", "Your browser does not support speech recognition. Please try using Chrome or Firefox.");
+                    return;
+                }
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                const recognition = new SpeechRecognition();
+                // UPDATED SPEECH RECOGNITION LANG CONFIGURATION
+                recognition.lang =
+                    currentLanguage === 'ml' ? 'ml-IN' : // ADDED MALAYALAM
+                    currentLanguage === 'ta' ? 'ta-IN' :
+                    currentLanguage === 'kn' ? 'kn-IN' :
+                    currentLanguage === 'hi' ? 'hi-IN' :
+                    'en-IN';
+
+                recognition.interimResults = false;
+                recognition.maxAlternatives = 1;
+
+                recognition.onstart = () => {
+                    micButton.style.backgroundColor = '#dc2626';
+                    userInput.placeholder = 'Listening...';
+                };
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    userInput.value = transcript;
+                    handleSendMessage();
+                };
+                recognition.onend = () => {
+                    micButton.style.backgroundColor = '#3B82F6';
+                    userInput.placeholder = placeholders[currentLanguage];
+                };
+                recognition.onerror = (event) => {
+                    console.error('Speech recognition error', event.error);
+                    showAlert("Speech Recognition Error", "There was an error recognizing your speech. Please try again.");
+                };
+                recognition.start();
+            });
+
+            // --- Image Modal ---
+            modalCloseButton.addEventListener('click', () => {
+                imageModal.classList.add('hidden');
+            });
+
+            modalUploadButton.addEventListener('click', () => {
+                const file = modalImageInput.files[0];
+                if (!file) {
+                    showAlert("No Image Selected", "Please select an image to upload.");
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const base64Image = e.target.result;
+                    addMessage(base64Image, 'user', true);
+                    imageModal.classList.add('hidden');
+                    const imagePrompt = "Please analyze this image and provide a diagnosis and solution for any pests or diseases. Be specific.";
+                    callGeminiAPI(imagePrompt, base64Image);
+                };
+                reader.readAsDataURL(file);
+            });
+
+            // Set up initial welcome message timestamp
+            const initialWelcomeMessage = document.querySelector('#chat-container .ai-message');
+            const timestamp = document.createElement('span');
+            timestamp.classList.add('message-timestamp');
+            timestamp.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            if (initialWelcomeMessage) initialWelcomeMessage.appendChild(timestamp);
+        });
+    </script>
+</body>
+</html>

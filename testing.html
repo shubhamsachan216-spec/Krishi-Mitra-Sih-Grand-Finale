@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kerala Soil Health Lab Finder</title>
+    <style>
+        /* Basic Styling for the Page */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #1a73e8; /* Google Blue */
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        /* Dropdown and Selection Area */
+        .selection-area {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            /* Added wrap for better layout on smaller screens */
+            flex-wrap: wrap; 
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        select {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+            min-width: 200px;
+            cursor: pointer;
+        }
+
+        /* Styling for the new button */
+        .action-button {
+            padding: 10px 15px;
+            background-color: #34a853; /* Google Green */
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            text-decoration: none; /* In case it's an anchor tag */
+            display: inline-block;
+            transition: background-color 0.3s ease;
+        }
+
+        .action-button:hover {
+            background-color: #2c8c46;
+        }
+
+        /* Results Display and Map Layout */
+        .results-section {
+            display: flex;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        #lab-details {
+            flex: 1;
+            min-width: 350px;
+        }
+
+        #map {
+            flex: 2;
+            height: 400px; /* Fixed height for the map */
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Lab Details Table Styling */
+        .lab-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .lab-table th, .lab-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        .lab-table th {
+            background-color: #f2f2f2;
+            color: #444;
+        }
+
+        .no-selection {
+            padding: 50px;
+            text-align: center;
+            color: #888;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1 style="color: #34a853;"> Kerala Soil Health Lab Finder for Farmers</h1>
+
+        <div class="selection-area">
+            <label for="district-select">Select Your District:</label>
+            <select id="district-select" onchange="loadLabData(this.value)">
+                <option value="">-- Please Select a District --</option>
+                </select>
+            <a href="soil.html" class="action-button">🔬 Soil Analysis</a>
+        </div>
+
+        <hr>
+
+        <div class="results-section">
+            <div id="lab-details">
+                <div class="no-selection">
+                    Select a district above to view the details and location of the Soil Testing Laboratories.
+                </div>
+            </div>
+
+            <div id="map">
+                </div>
+        </div>
+    </div>
+
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBYQ5YKm-oIy-RK1BClVR1TPsDXufPtFIU&callback=initMap">
+    </script>
+
+    <script>
+        // --- 1. LABORATORY DATA ---
+        const labData = {
+            'Thiruvananthapuram': [
+                { type: 'DSTL', name: 'District Soil Testing Lab', address: 'Central Soil Testing Laboratory, Parottukonam, Nalanchira. P.O., Thiruvananthapuram - 695 015', lat: 8.5445, lng: 76.9535, phone: '0471 2533044' },
+                { type: 'MSTL', name: 'Mobile Soil Testing Lab', address: 'Mobile Soil Testing Laboratory, Parottukonam, Nalanchira. P.O., Thiruvananthapuram', lat: 8.5450, lng: 76.9540, phone: '9383471213' }
+            ],
+            'Kollam': [
+                { type: 'DSTL', name: 'District Soil Testing Lab', address: 'Soil Testing Laboratory, Kottamukku, Kollam - 13', lat: 8.8950, lng: 76.6025, phone: '0474 2797869' },
+                { type: 'MSTL', name: 'Mobile Soil Testing Lab', address: 'Mobile Soil Testing Laboratory, Kottamukku, Kollam - 13', lat: 8.8960, lng: 76.6030, phone: '9383470339' }
+            ],
+            'Pathanamthitta': [
+                { type: 'DSTL', name: 'District Soil Testing Lab', address: 'Soil Testing Laboratory, Kadakkad, Pandalam, Pathanamthitta', lat: 9.2292, lng: 76.6890, phone: '04734 256645' }
+            ],
+            'Alappuzha': [
+                { type: 'DSTL', name: 'District Soil Testing Lab', address: 'Soil Testing Laboratory, Sanandanapuram, Alappuzha - 3', lat: 9.4977, lng: 76.3312, phone: '0477 2266862' },
+                { type: 'MSTL', name: 'Mobile Soil Testing Lab', address: 'Mobile Soil Testing Laboratory, Sanandanapuram, Alappuzha - 3', lat: 9.4980, lng: 76.3315, phone: '9383470575' }
+            ],
+            'Kottayam': [
+                { type: 'DSTL', name: 'District Soil Testing Lab', address: 'District Soil Testing Laboratory, Kozha P.O., Kuravilangad, Kottayam - 686640', lat: 9.7745, lng: 76.5170, phone: '04822 231156' },
+                { type: 'MSTL', name: 'Mobile Soil Testing Lab', address: 'Mobile Soil Testing Laboratory, Kozha P.O., Kottayam - 686640', lat: 9.7750, lng: 76.5175, phone: '9383470716' }
+            ],
+            'Idukki': [
+                { type: 'DSTL', name: 'District Soil Testing Lab', address: 'Soil Testing Laboratory, Muthalakkodam, Thodupuzha, Idukki', lat: 9.8753, lng: 76.7118, phone: '04862 282262' }
+            ],
+            'Ernakulam': [
+                { type: 'DSTL', name: 'District Soil Testing Lab', address: 'Soil Testing Laboratory, Vyttila, Ernakulam, Kochi - 19', lat: 9.9675, lng: 76.3121, phone: '0484 2703976' }
+            ],
+            'Thrissur': [
+                { type: 'DSTL', name: 'District Soil Testing Lab', address: 'Soil Testing Laboratory, Chempukavu, Thrissur - 20', lat: 10.5186, lng: 76.2163, phone: '0487 2320630' },
+                { type: 'MSTL', name: 'Mobile Soil Testing Lab', address: 'Mobile Soil Testing Laboratory, Chempukavu, Thrissur - 20', lat: 10.5190, lng: 76.2168, phone: '9383471412' }
+            ],
+            'Palakkad': [
+                { type: 'DSTL', name: 'District Soil Testing Lab', address: 'Soil Testing Laboratory, Pattambi, Palakkad - 679 306', lat: 10.8040, lng: 76.2905, phone: '0466 2212091' },
+                { type: 'MSTL', name: 'Mobile Soil Testing Lab', address: 'Mobile Soil Testing Laboratory, Pattambi, Palakkad - 679 306', lat: 10.8045, lng: 76.2910, phone: '9383471469' }
+            ],
+            'Malappuram': [
+                { type: 'DSTL', name: 'District Soil Testing Lab', address: 'Soil Testing Laboratory, B3 Block, Civil Station, Malappuram - 5', lat: 11.0507, lng: 76.0718, phone: '0483 2731390' },
+                { type: 'MSTL', name: 'Mobile Soil Testing Lab', address: 'Mobile Soil Testing Laboratory, B3 Block, Civil Station, Malappuram - 5', lat: 11.0510, lng: 76.0722, phone: '9383471628' }
+            ],
+            'Kozhikode': [
+                { type: 'DSTL', name: 'District Soil Testing Lab', address: 'Soil Testing Laboratory, Tikkotti, Kozhikode - 673529', lat: 11.4550, lng: 75.6980, phone: '0496 2600250' },
+                { type: 'MSTL', name: 'Mobile Soil Testing Lab', address: 'Mobile Soil Testing Laboratory, Tikkotti, Kozhikode - 673529', lat: 11.4555, lng: 75.6985, phone: '9383471792' }
+            ],
+            'Wayanad': [
+                { type: 'DSTL', name: 'District Soil Testing Lab', address: 'District Soil Testing Laboratory, Mananthavady, Wayanad - 670645', lat: 11.8021, lng: 76.0029, phone: '04935 242499' }
+            ],
+            'Kannur': [
+                { type: 'DSTL', name: 'District Soil Testing Lab', address: 'District Soil Testing Laboratory, Karimbam, Taliparamba, Kannur - 670142', lat: 12.0465, lng: 75.3610, phone: '0460 2206812' },
+                { type: 'MSTL', name: 'Mobile Soil Testing Lab', address: 'Mobile Soil Testing Laboratory, F Block, Civil Station, Kannur - 670002', lat: 11.8790, lng: 75.3700, phone: '0497 2764595' }
+            ],
+            'Kasaragod': [
+                { type: 'DSTL', name: 'District Soil Testing Lab', address: 'Soil Testing Laboratory, State Seed Farm Complex (Agri), A.T. Road, Kasaragod - 671121', lat: 12.5152, lng: 74.9916, phone: '04994 227428' }
+            ]
+        };
+
+        let map; // Global variable to hold the map instance
+        let markers = []; // Array to hold map markers
+
+        // --- 2. INITIALIZE PAGE ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            populateDistrictDropdown();
+        });
+
+        function populateDistrictDropdown() {
+            const select = document.getElementById('district-select');
+            const districts = Object.keys(labData).sort(); // Sort districts alphabetically
+
+            districts.forEach(district => {
+                const option = document.createElement('option');
+                option.value = district;
+                option.textContent = district;
+                select.appendChild(option);
+            });
+        }
+
+        // --- 3. GOOGLE MAPS FUNCTIONALITY ---
+
+        function initMap() {
+            // Default center of Kerala (Kochi/Ernakulam area)
+            const keralaCenter = { lat: 9.9312, lng: 76.2673 };
+
+            map = new google.maps.Map(document.getElementById('map'), {
+                zoom: 8, // Initial zoom level
+                center: keralaCenter,
+                mapTypeId: 'roadmap' // Can be 'satellite', 'hybrid', 'terrain'
+            });
+
+            // If the user selects a district before the map is loaded, this ensures the map updates immediately after initialization.
+            const selectedDistrict = document.getElementById('district-select').value;
+            if (selectedDistrict) {
+                updateMap(selectedDistrict);
+            }
+        }
+
+        function clearMarkers() {
+            for (let i = 0; i < markers.length; i++) {
+                markers[i].setMap(null);
+            }
+            markers = [];
+        }
+
+        function addMarker(lab) {
+            const position = { lat: lab.lat, lng: lab.lng };
+            const marker = new google.maps.Marker({
+                position: position,
+                map: map,
+                title: lab.name,
+                // Custom icon for DSTL/MSTL
+                icon: lab.type === 'DSTL' ? 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' : 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
+            });
+
+            // Info window content
+            const infowindow = new google.maps.InfoWindow({
+                content: `
+                    <strong>${lab.name} (${lab.type})</strong><br>
+                    Address: ${lab.address}<br>
+                    Phone: ${lab.phone}
+                `
+            });
+
+            marker.addListener('click', () => {
+                infowindow.open(map, marker);
+            });
+
+            markers.push(marker);
+        }
+
+        function updateMap(district) {
+            if (!map) return; // Ensure map is initialized
+
+            clearMarkers();
+            const labs = labData[district];
+            if (!labs || labs.length === 0) return;
+
+            const bounds = new google.maps.LatLngBounds();
+
+            labs.forEach(lab => {
+                addMarker(lab);
+                bounds.extend(new google.maps.LatLng(lab.lat, lab.lng));
+            });
+
+            // Fit the map view to include all markers
+            map.fitBounds(bounds);
+        }
+
+        // --- 4. DISPLAY LAB DETAILS ---
+
+        function loadLabData(district) {
+            const detailsDiv = document.getElementById('lab-details');
+
+            if (!district) {
+                detailsDiv.innerHTML = `
+                    <div class="no-selection">
+                        Select a district above to view the details and location of the Soil Testing Laboratories.
+                    </div>
+                `;
+                // Center map back to Kerala center if no district is selected
+                if (map) map.setCenter({ lat: 9.9312, lng: 76.2673 });
+                clearMarkers();
+                return;
+            }
+
+            const labs = labData[district];
+            let html = `<h2>${district} Lab Details</h2>`;
+
+            html += `<table class="lab-table">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Name</th>
+                                <th>Address</th>
+                                <th>Phone No.</th>
+                                <th>Navigation</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+            labs.forEach(lab => {
+                const mapLink = `https://www.google.com/maps/dir/?api=1&destination=$${encodeURIComponent(lab.address)}`;
+                
+                html += `<tr>
+                            <td>${lab.type === 'DSTL' ? 'DSTL 🧪' : 'MSTL 🚚'}</td>
+                            <td>${lab.name}</td>
+                            <td>${lab.address}</td>
+                            <td><a href="tel:${lab.phone}">${lab.phone}</a></td>
+                            <td><a href="${mapLink}" target="_blank">Get Directions ➡️</a></td>
+                         </tr>`;
+            });
+
+            html += `</tbody></table>`;
+            detailsDiv.innerHTML = html;
+
+            // Update the map with the new data
+            updateMap(district);
+        }
+    </script>
+
+</body>
+</html>
